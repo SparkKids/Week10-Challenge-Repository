@@ -34,7 +34,11 @@ inquirer
         console.log("case View All Departments");
         getDepartments();
         break;
-
+        case 'View All Roles':
+          console.log("case View All Roles");
+          getRoles();
+          break;
+  
     }
   });
 
@@ -65,9 +69,28 @@ ON e.manager_id = e2.id`;
 
 }
 function getDepartments() {
-  console.log("getEmployees");
+  console.log("getDepartments");
   const sql = `SELECT id, name FROM department
 ORDER BY name`;
+  console.log("Before pool.query")
+  pool.query(sql, (err: Error, result: QueryResult) => {
+    console.log("pool.query")
+    if (err) {
+      console.log("pool.query error")
+      console.log(err);
+    } else if (result) {
+      console.log("result")
+      console.log(result.rows);
+      console.table(result.rows);
+    }
+  })
+}
+function getRoles() {
+  console.log("getRoles");
+  const sql = `SELECT r.id, r.title, d.name AS department, r.salary 
+FROM role r INNER JOIN department d
+ON r.department_id = d.id
+ORDER BY r.title`;
   console.log("Before pool.query")
   pool.query(sql, (err: Error, result: QueryResult) => {
     console.log("pool.query")
