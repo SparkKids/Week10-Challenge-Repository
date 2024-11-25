@@ -2,7 +2,7 @@ import express from 'express';
 //import { QueryResult } from 'pg';
 import { /* pool, */ connectToDb } from './connection.js';
 import inquirer from 'inquirer';
-import { addDepartment, addEmployee, addRole, getEmployees, getDepartments, getRoles, updateEmployeeRole } from './db.js'; // Import the functions
+import { addDepartment, addEmployee, addRole, displayEmployees, displayDepartments, getRoles, updateEmployeeRoleID } from './db.js'; // Import the functions
 
 await connectToDb();
 console.log("After call to connectToDb");
@@ -26,8 +26,7 @@ inquirer
   .then(async (data) => {
     switch (data.userChoice) {
       case 'View All Employees':
-        console.log("case View All Employees");
-        getEmployees();
+        displayEmployees();
         break;
         case 'Add An Employee':
           console.log("case Add An Employee");
@@ -35,11 +34,11 @@ inquirer
           break;
           case 'Update Employee Role':
             console.log("case Update Employee Role");
-            updateEmployeeRole();
+            updateEmployeeRoleID();
             break;
             case 'View All Departments':
         console.log("case View All Departments");
-        getDepartments();
+        displayDepartments();
         break;
       case 'View All Roles':
         console.log("case View All Roles");
