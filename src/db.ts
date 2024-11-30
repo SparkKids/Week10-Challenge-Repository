@@ -13,7 +13,13 @@ interface Employee {
     department: string;
     salary: string;
 }
-// Define the structure of the emp0lyee row
+//Define the structure of the department 
+//record returned by selectDepartment
+interface Department {
+    id: number;
+    name: string;
+}
+// Define the structure of the empolyee row
 interface EmployeeID {
     id: number;
     employeeName: string;
@@ -29,90 +35,111 @@ interface Role {
 //
 // CRUD operations for department table
 //
-// 'C' addDepartment()
+// 'C'  addDepartment()
 //
-// 'R' displayDepartments()
+// 'R'  displayDepartments()
+//      selectDepartment()
 //
 //////////////////////////////////////
 
 //Prompt for new department and add it 
 //into the department table 
-export function addDepartment() {
-    console.log("addDepartment");
+export async function addDepartment() {
 
-    inquirer
-        .prompt([
+    try {
+        const data = await inquirer.prompt([
             {
                 type: 'input',
                 name: 'departmentName',
                 message: 'What is the department\'s name?',
             }
+        ]);
 
-        ])
-        .then(async (data) => {
-            console.log("data.departmentName " + data.departmentName);
-            const sql = `INSERT INTO department (name) VALUES ($1)`;
-            pool.query(
-                sql,
-                [data.departmentName],
-                (err: Error, result: QueryResult) => {
-                    if (err) {
-                        console.log(err);
-                    } else {
-                        console.log(`${result.rowCount} row(s) inserted!`);
-                    }
-                });
-        })
+        const sql = `INSERT INTO department (name) VALUES ($1)`;
+        const result = await pool.query(sql, [data.departmentName]);
 
-}//export function addDepartment() {
+        console.log(`${result.rowCount} row(s) inserted!`);
+    } catch (err) {
+        console.error(err);
+    }
+}//export async function addDepartment() 
 
-export function displayDepartments() {
-    console.log("getDepartments");
+export async function displayDepartments() {
     const sql = `SELECT id, name FROM department ORDER BY name`;
-    console.log("Before pool.query");
-    pool.query(sql, (err: Error, result: QueryResult) => {
-        console.log("pool.query");
-        if (err) {
-            console.log("pool.query error");
-            console.log(err);
-        } else if (result) {
-            console.log("result");
-            console.log(result.rows);
-            console.table(result.rows);
-        }
+
+    return new Promise((resolve, reject) => {
+        pool.query(sql, (err: Error, result: QueryResult) => {
+            if (err) {
+                console.error(err);
+                reject(err); // Reject the promise if there's an error
+            } else if (result) {
+                console.log("View All Departments");
+                console.table(result.rows);
+                resolve(result.rows); // Resolve the promise with the result
+            }
+        });
     });
-}//export function displayDepartments() {
+}
+export async function displayDeptUtilizedBudget() {
+    const promptString = 'Select A Deparment To Display Utilized Budget';
+    const department = await selectDepartment(promptString);
+    console.log("department: " + department.name);
+    const sql = `SELECT d.name, SUM(r.salary) AS total_budget
+FROM employee e JOIN role r 
+ON e.role_id = r.id
+JOIN department d
+ON d.id = r.department_id
+WHERE d.id = $1
+GROUP BY d.name`;
 
-async function selectDepartment() {
+    return new Promise((resolve, reject) => {
+        pool.query(sql, [department.id], (err: Error, result: QueryResult) => {
+            if (err) {
+                console.error(err);
+                reject(err); // Reject the promise if there's an error
+            } else {
+                // Iterate over result.rows to format the output
+                result.rows.forEach(row => {
+                    // Ensure total_budget is treated as a number
+                    const totalBudget = Number(row.total_budget);
+                    const formattedBudget = totalBudget.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+                    console.log(`The ${row.name} department has a total utilized budget of ${formattedBudget}`);
+                }); resolve(result.rows); // Resolve the promise with the result rows
+            }
+        });
+    });
+
+}//export async function displayDeptUtilizedBudget()
+
+async function selectDepartment(selectPrompt: string): Promise<Department> {
     const sql = `SELECT id, name FROM department ORDER BY name`;
-    console.log("Before pool.query");
 
     return new Promise((resolve, reject) => {
         pool.query(sql, (err: Error, results: QueryResult) => {
-            console.log("pool.query");
             if (err) {
-                console.log("pool.query error");
                 console.log(err);
-                return reject(err);
+                reject(err);
             } else if (results) {
-                console.log("results");
-                console.log(results.rows);
-                console.table(results.rows);
                 const choices = results.rows.map(result => ({
                     name: result.name, // Display name
                     value: result.id   // Value to return
                 }));
-                console.log("Choices:" + choices);
                 inquirer.prompt([
                     {
                         type: 'list',
                         name: 'selectedDepartment',
-                        message: 'Choose a department:',
+                        message: selectPrompt,
                         choices: choices
                     }
                 ]).then(answers => {
-                    console.log(`You selected department id: ${answers.selectedDepartment}`);
-                    resolve(answers.selectedDepartment); // Resolve with the selected department ID
+                    // Find the selected department name using the selected ID
+                    const selectedDept = choices.find(choice => choice.value === answers.selectedDepartment) || { name: 'unknown' };
+                    console.log(`You selected department: ${selectedDept.name}`); // Display department name
+                    // Resolve with an object containing both the selected department ID and name
+                    resolve({
+                        id: answers.selectedDepartment,
+                        name: selectedDept.name
+                    });
                 }).catch(err => {
                     console.error(err);
                     reject(err);
@@ -120,7 +147,7 @@ async function selectDepartment() {
             }
         });
     });
-}
+}//async function selectDepartment(selectPrompt: string)
 
 //////////////////////////////////////
 //
@@ -137,34 +164,33 @@ async function selectDepartment() {
 //      getEmployeesDetails() - Selects a list of employees details
 //                              to display to the user
 //
+//  'U' updateEmployeeManagerID() - Assigns a new manager to 
+//                                  an employee
+//
+//      updateEmployeeRoleID()    - Assigns a new role to an employee  
+//
 //////////////////////////////////////
 export async function addEmployee() {
-    console.log("addEmployee");
     const firstName = await promptForFirstName();
-    console.log("firstName: " + firstName);
     const lastName = await promptForLastName();
-    console.log("lastName: " + promptForLastName);
     const roleID = await selectRoleID();
-    console.log("roleID: " + roleID);
     const managerID = await selectManager();
-    console.log("managerID: " + managerID);
 
     const sql = `INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES ($1, $2, $3, $4)`;
-    console.log("Before pool.query INSERT INTO employee");
-    pool.query(
-        sql,
-        [firstName, lastName, roleID, managerID],
-        (err: Error, result: QueryResult) => {
-            console.log("Before if (err)");
-            if (err) {
-                console.log("Error executing query:", err);
-            } else {
-                console.log(`${result.rowCount} row(s) inserted!`);
-                console.log("Result:", result);
-            }
-            console.log("After if (err)");
-        });
-    console.log("After pool.query INSERT INTO employee");
+    return new Promise((resolve, reject) => {
+        pool.query(
+            sql,
+            [firstName, lastName, roleID, managerID],
+            (err: Error, result: QueryResult) => {
+                if (err) {
+                    console.error(err);
+                    reject(err); // Reject the promise if there's an error
+                } else {
+                    console.log(`${result.rowCount} row(s) inserted!`);
+                    resolve(result.rowCount);
+                }
+            });
+    });
 }//export async function addEmployee
 
 async function promptForFirstName() {
@@ -177,7 +203,6 @@ async function promptForFirstName() {
             }
 
         ])
-    console.log("data.firstName " + data.firstName);
     return data.firstName;
 }//async function promptForFirstName()
 
@@ -191,27 +216,91 @@ async function promptForLastName() {
             }
 
         ])
-    console.log("data.lastName " + data.lastName);
     return data.lastName;
 }//async function promptForLastName()
 
+export async function displayEmployeesByDepartment() {
+    const sql = `SELECT e.first_name || ' ' || e.last_name AS "Employee Name", d.name AS "Department" 
+FROM employee e
+JOIN role r
+ON e.role_id = r.id
+JOIN department d
+on r.department_id = d.id
+order by "Department", e.last_name, e.first_name
+`;
+
+    return new Promise((resolve, reject) => {
+        pool.query(sql, (err: Error, result: QueryResult) => {
+            if (err) {
+                console.error(err);
+                reject(err); // Reject the promise if there's an error
+            } else {
+                // Iterate over result.rows to format the output
+                console.table(result.rows);
+                resolve(result.rows); // Resolve the promise with the result rows
+            }
+        });
+    });
+
+}//export async function displayEmployeesByDepartment()
+
+export async function displayEmployeesByManager() {
+    const sql = `SELECT e.first_name || ' ' || e.last_name AS "Employee Name", COALESCE(m.first_name || ' ' || m.last_name, 'No Manager') AS Manager 
+FROM employee e
+LEFT OUTER JOIN employee m
+on m.id = e.manager_id
+order by m.last_name, m.first_name, e.last_name, e.first_name`;
+
+    return new Promise((resolve, reject) => {
+        pool.query(sql, (err: Error, result: QueryResult) => {
+            if (err) {
+                console.error(err);
+                reject(err); // Reject the promise if there's an error
+            } else {
+                // Iterate over result.rows to format the output
+                console.table(result.rows);
+                resolve(result.rows); // Resolve the promise with the result rows
+            }
+        });
+    });
+
+}//export async function displayEmployeesByManager()
+
+
+export async function updateEmployeeManagerID() {
+    const id = await selectEmployeeForManagerChange();
+    const manager_id = await selectManager();
+    const values = [manager_id, id]
+    const sql = `UPDATE employee 
+        SET manager_id = $1
+        WHERE id = $2`;
+
+    return new Promise((resolve, reject) => {
+        pool.query(sql, values, (err: Error, result: QueryResult) => {
+            if (err) {
+                console.error(err);
+                reject(err); // Reject the promise if there's an error
+            } else {
+                //console.table(result.rows);
+                resolve(result.rows); // Resolve the promise with the result rows
+            }
+        });
+
+    });
+}//export async function updateEmployeeManagerID()
+
 export async function updateEmployeeRoleID() {
     const id = await selectEmployeeForRoleChange();
-    console.log("id: " + id);
     const role_id = await selectRoleID();
-    console.log("role_id: " + role_id);
     const values = [role_id, id]
     const sql = `UPDATE employee 
         SET role_id = $1
         WHERE id = $2`;
-    console.log("Before pool.query");
 
     return new Promise((resolve, reject) => {
         pool.query(sql, values, (err: Error, result: QueryResult) => {
-            console.log("pool.query");
             if (err) {
-                console.log("pool.query error");
-                console.log(err);
+                console.error(err);
                 reject(err); // Reject the promise if there's an error
             } else {
                 console.table(result.rows);
@@ -219,27 +308,22 @@ export async function updateEmployeeRoleID() {
             }
         });
     });
-}
+}//export async function updateEmployeeRoleID()
 
 async function getEmployees(): Promise<EmployeeID[]> {
-    console.log("getEmployees");
     const sql = `SELECT e.id, e.first_name || ' ' || e.last_name || ' - ' || title || ' - Dept - ' || d.name AS "employeeName"
 FROM employee e INNER JOIN role r
 on e.role_id = r.id
 INNER JOIN department d
 ON d.id = r.department_id
-ORDER BY r.title`;
-    console.log("Before pool.query");
+ORDER BY d.name, e.last_name,e.first_name`;
 
     return new Promise((resolve, reject) => {
         pool.query(sql, (err: Error, result: QueryResult) => {
-            console.log("pool.query");
             if (err) {
-                console.log("pool.query error");
-                console.log(err);
+                console.error(err);
                 reject(err); // Reject the promise if there's an error
             } else {
-                console.table(result.rows);
                 resolve(result.rows); // Resolve the promise with the result rows
             }
         });
@@ -247,12 +331,31 @@ ORDER BY r.title`;
 }//async function getEmployees(): Promise<EmployeeID[]> {
 
 //Need to select an employee for the employee.role_id change
-async function selectEmployeeForRoleChange() {
-    console.log("async function selectEmployeeForRoleChange() Start");
+async function selectEmployeeForManagerChange() {
     // Get the employees from the database
     const employees = await getEmployees();
-    console.log("After getEmployees");
-    console.table(employees);
+    const employeeChoices = employees.map(employee => ({
+        name: employee.employeeName,
+        value: employee.id // Return the id as the value
+    }));
+
+    return inquirer.prompt([
+        {
+            type: 'list',
+            name: 'employeeId',
+            message: 'Please select an employee for a new manager:',
+            choices: employeeChoices
+        }
+    ]).then(answers => {
+        return answers.employeeId; // This will return the selected manager's id
+    });
+
+} //async function selectEmployeeForRoleChange()
+
+//Need to select an employee for the employee.role_id change
+async function selectEmployeeForRoleChange() {
+    // Get the employees from the database
+    const employees = await getEmployees();
     const employeeChoices = employees.map(employee => ({
         name: employee.employeeName,
         value: employee.id // Return the id as the value
@@ -273,16 +376,17 @@ async function selectEmployeeForRoleChange() {
 
 //Need to select an employee for the employee.manager_id
 async function selectManager() {
-    console.log("selectManager() Start");
     // Get the employees from the database
     const managers = await getEmployees();
-    console.log("After getEmployees");
-    console.table(managers);
     const managerChoices = managers.map(manager => ({
         name: manager.employeeName,
         value: manager.id // Return the id as the value
     }));
-
+    // Add the 'No Manager' option
+    managerChoices.push({
+        name: 'No Manager',
+        value: 0
+    });
     return inquirer.prompt([
         {
             type: 'list',
@@ -291,6 +395,10 @@ async function selectManager() {
             choices: managerChoices
         }
     ]).then(answers => {
+        if (answers.managerId === 0) {//User has selected 'No Manager'
+            //set employee.manager_id to null
+            answers.managerId = null;
+        }
         return answers.managerId; // This will return the selected manager's id
     });
 
@@ -303,11 +411,12 @@ on e.role_id = r.id
 INNER JOIN department d
 ON d.id = r.department_id
 LEFT OUTER JOIN employee e2
-ON e.manager_id = e2.id`;
+ON e.manager_id = e2.id
+ORDER BY d.name, e.last_name,e.first_name`;
     return new Promise((resolve, reject) => {
         pool.query(sql, (err: Error, result: QueryResult) => {
             if (err) {
-                console.log(err);
+                console.error(err);
                 reject(err); // Reject the promise if there's an error
             } else if (result) {
                 resolve(result.rows);
@@ -319,6 +428,7 @@ ON e.manager_id = e2.id`;
 //Display a list of employees to the console
 export async function displayEmployees() {
     const employeeDetails = await getEmployeesDetails();
+    console.log("View All Employees");
     console.table(employeeDetails);
 
 }//export async function displayEmployees()
@@ -333,35 +443,34 @@ export async function displayEmployees() {
 //          promptForSalary() - used to create role.salary
 //
 //  'R'
+//      displayRoles()
 //      getRoles()
 //      selectRoleID()
 //
 //////////////////////////////////////
 export async function addRole() {
-    console.log("addRole");
     const roleTitle = await promptForRoleTitle();
-    console.log("roleTitle: " + roleTitle);
+    console.log("RoleTitle: " + roleTitle);
     const salary = await promptForSalary();
     console.log("salary: " + salary);
-    const departmentID = await selectDepartment();
-    console.log("after selectDepartment departmentID: " + departmentID);
+    const department = await selectDepartment('Select Department for new role:');
+
 
     const sql = `INSERT INTO role (title, salary, department_id) VALUES ($1, $2, $3)`;
-    console.log("Before pool.query INSERT INTO role");
-    pool.query(
-        sql,
-        [roleTitle, salary, departmentID],
-        (err: Error, result: QueryResult) => {
-            console.log("Before if (err)");
-            if (err) {
-                console.log("Error executing query:", err);
-            } else {
-                console.log(`${result.rowCount} row(s) inserted!`);
-                console.log("Result:", result);
-            }
-            console.log("After if (err)");
-        });
-    console.log("After pool.query INSERT INTO role");
+    return new Promise((resolve, reject) => {
+        pool.query(
+            sql,
+            [roleTitle, salary, department.id],
+            (err: Error, result: QueryResult) => {
+                if (err) {
+                    console.error("Error executing query:" + err);
+                    reject(err); // Reject the promise if there's an error
+                } else {
+                    console.log(`${result.rowCount} row(s) inserted!`);
+                    resolve(result);
+                }
+            });
+    });
 }//export async function addRole()
 
 async function promptForRoleTitle() {
@@ -374,25 +483,20 @@ async function promptForRoleTitle() {
             }
 
         ])
-    console.log("data.roleTitle " + data.roleTitle);
     return data.roleTitle;
 }//async function promptForRoleTitle() {
 
 
-export async function getRoles(): Promise<Role[]> {
-    console.log("getRoles");
+async function getRoles(): Promise<Role[]> {
     const sql = `SELECT r.id, r.title, d.name AS department, r.salary 
 FROM role r INNER JOIN department d
 ON r.department_id = d.id
 ORDER BY r.title`;
-    console.log("Before pool.query");
 
     return new Promise((resolve, reject) => {
         pool.query(sql, (err: Error, result: QueryResult) => {
-            console.log("pool.query");
             if (err) {
-                console.log("pool.query error");
-                console.log(err);
+                console.error(err);
                 reject(err); // Reject the promise if there's an error
             } else {
                 resolve(result.rows); // Resolve the promise with the result rows
@@ -430,6 +534,11 @@ async function promptForSalary() {
             }
 
         ])
-    console.log("data.salary " + data.salary);
     return data.salary;
-}//async function promptForSalary() {
+}//async function promptForSalary()
+
+export async function displayRoles() {
+    const result = await getRoles();
+    console.log("View All Roles")
+    console.table(result);
+}

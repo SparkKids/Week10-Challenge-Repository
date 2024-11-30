@@ -2,10 +2,15 @@ import express from 'express';
 //import { QueryResult } from 'pg';
 import { /* pool, */ connectToDb } from './connection.js';
 import inquirer from 'inquirer';
-import { addDepartment, addEmployee, addRole, displayEmployees, displayDepartments, getRoles, updateEmployeeRoleID } from './db.js'; // Import the functions
+import {
+  addDepartment, addEmployee, addRole, displayEmployees, 
+  displayEmployeesByDepartment, displayEmployeesByManager,
+  displayDepartments,
+  displayDeptUtilizedBudget, displayRoles,
+  updateEmployeeManagerID, updateEmployeeRoleID
+} from './db.js'; // Import the functions
 
 await connectToDb();
-console.log("After call to connectToDb");
 //const PORT = process.env.PORT || 3001;
 const app = express();
 
@@ -13,60 +18,62 @@ const app = express();
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 
-inquirer
-  .prompt([
-    {
-      type: 'list',
-      name: 'userChoice',
-      message: 'What would you like to do?',
-      choices: ['View All Employees', 'Add An Employee', 'Update Employee Role', 'View All Roles', 'Add A Role', 'View All Departments', 'Add A Department'],
-    }
+async function promptUser() {
+  while (true) {
+    const data = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'userChoice',
+        message: 'What would you like to do?',
+        choices: ['View All Employees', 'View Employees By Department', 'View Employees By Manager', 'Add An Employee', 'Update Employee Role',
+          'Update Employee Manager', 'View All Roles', 'Add A Role', 'View All Departments',
+          'View A Department\'s Total Utilized Budget', 'Add A Department', 'Exit The Program'],
+      }
+    ]);
 
-  ])
-  .then(async (data) => {
     switch (data.userChoice) {
       case 'View All Employees':
-        displayEmployees();
+        await displayEmployees();
         break;
-        case 'Add An Employee':
-          console.log("case Add An Employee");
-          addEmployee();
+        case 'View Employees By Department':
+          await displayEmployeesByDepartment();
           break;
-          case 'Update Employee Role':
-            console.log("case Update Employee Role");
-            updateEmployeeRoleID();
-            break;
-            case 'View All Departments':
-        console.log("case View All Departments");
-        displayDepartments();
+        case 'View Employees By Manager':
+        await displayEmployeesByManager();
+        break;
+      case 'Add An Employee':
+        await addEmployee(); // Ensure this is awaited if it's an async function
+        break;
+      case 'Update Employee Role':
+        await updateEmployeeRoleID(); // Ensure this is awaited if it's an async function
+        break;
+      case 'Update Employee Manager':
+        await updateEmployeeManagerID(); // Ensure this is awaited if it's an async function
+        break;
+      case 'View All Departments':
+        await displayDepartments();
+        break;
+      case 'View A Department\'s Total Utilized Budget':
+        await displayDeptUtilizedBudget();
         break;
       case 'View All Roles':
-        console.log("case View All Roles");
-        await viewAllRoles();
+        await displayRoles(); // Ensure this is awaited if it's an async function
         break;
       case 'Add A Role':
-        console.log("case Add A Role");
-        addRole();
+        await addRole(); // Ensure this is awaited if it's an async function
         break;
       case 'Add A Department':
-        console.log("case Add A Department");
-        addDepartment();
+        await addDepartment(); // Ensure this is awaited if it's an async function
         break;
-
+      case 'Exit The Program':
+        return; // Exit the program by breaking the loop
     }
-  });
+  } // while (true)
+} // async function promptUser()
+
+await promptUser();
+process.exit();
 
 
-
-// Default response for any other request (Not Found)
-app.use((_req, res) => {
-  res.status(404).end();
-});
-
-async function viewAllRoles() {
-  console.log("viewAllRoles");
-  const result = await getRoles();
-  console.table(result);
-}
 
 

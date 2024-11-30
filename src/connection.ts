@@ -16,9 +16,6 @@ const pool = new Pool({
 
 const connectToDb = async () => {
   try {
-    console.log("DB_USER: " + process.env.DB_USER);
-    console.log("DB_PASSWORD: " + process.env.DB_PASSWORD);
-    console.log("DB_NAME: " + process.env.DB_NAME);
     await pool.connect();
     console.log('Connected to the database.');
   } catch (err) {
