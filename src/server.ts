@@ -3,7 +3,8 @@ import express from 'express';
 import { /* pool, */ connectToDb } from './connection.js';
 import inquirer from 'inquirer';
 import {
-  addDepartment, addEmployee, addRole, displayEmployees, 
+  addDepartment, addEmployee, addRole, deleteDepartment,
+  deleteEmployee, deleteRole, displayEmployees,
   displayEmployeesByDepartment, displayEmployeesByManager,
   displayDepartments,
   displayDeptUtilizedBudget, displayRoles,
@@ -25,9 +26,9 @@ async function promptUser() {
         type: 'list',
         name: 'userChoice',
         message: 'What would you like to do?',
-        choices: ['View All Employees', 'View Employees By Department', 'View Employees By Manager', 'Add An Employee', 'Update Employee Role',
-          'Update Employee Manager', 'View All Roles', 'Add A Role', 'View All Departments',
-          'View A Department\'s Total Utilized Budget', 'Add A Department', 'Exit The Program'],
+        choices: ['View All Employees', 'View Employees By Department', 'View Employees By Manager', 'Add An Employee','Delete An Employee' ,'Update Employee Role',
+          'Update Employee Manager', 'View All Roles', 'Add A Role', 'Delete A Role', 'View All Departments',
+          'View A Department\'s Total Utilized Budget', 'Add A Department', 'Delete A Department', 'Exit The Program'],
       }
     ]);
 
@@ -35,16 +36,19 @@ async function promptUser() {
       case 'View All Employees':
         await displayEmployees();
         break;
-        case 'View Employees By Department':
-          await displayEmployeesByDepartment();
-          break;
-        case 'View Employees By Manager':
+      case 'View Employees By Department':
+        await displayEmployeesByDepartment();
+        break;
+      case 'View Employees By Manager':
         await displayEmployeesByManager();
         break;
       case 'Add An Employee':
         await addEmployee(); // Ensure this is awaited if it's an async function
         break;
-      case 'Update Employee Role':
+        case 'Delete An Employee':
+          await deleteEmployee(); // Ensure this is awaited if it's an async function
+          break;
+        case 'Update Employee Role':
         await updateEmployeeRoleID(); // Ensure this is awaited if it's an async function
         break;
       case 'Update Employee Manager':
@@ -62,8 +66,14 @@ async function promptUser() {
       case 'Add A Role':
         await addRole(); // Ensure this is awaited if it's an async function
         break;
+      case 'Delete A Role':
+        await deleteRole(); // Ensure this is awaited if it's an async function
+        break;
       case 'Add A Department':
         await addDepartment(); // Ensure this is awaited if it's an async function
+        break;
+      case 'Delete A Department':
+        await deleteDepartment();
         break;
       case 'Exit The Program':
         return; // Exit the program by breaking the loop
