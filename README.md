@@ -43,6 +43,8 @@ This starts the application and displays the user prompts. The user uses the arr
   Delete A Department
   Exit The Program
 
+  Employee Tracker Video: https://drive.google.com/file/d/1NnHglie_kFbz91J9dAH9xfoS0fRWWCbG/view
+
   ## Credits
 
   Extensive use was made of the BootCamp Xpert Learning Assistant. This AI tool was a valuable learning tool. It helped with debugging and understanding how to write better TypeScript. For example: My async function selectRoleID(promptString: string): Promise<Role> was trying to wrap await inquirer.prompt() in a new promise constructor. This is not allowed to embed an await in a promise constructor. The AI tool then showed how to await the inquirer.prompt call directly without using a promise.
